@@ -39,6 +39,64 @@ The `cmpl` start script of a CMPL installation is not used, it does not accept t
 `Cmpl.cancel()`, cleanup after errors and interrupts (e.g. Ctrl+C) stop the whole process tree -
 cmpl and the solver it has started (e.g. HiGHS). Before 2.1.0 only cmpl was stopped and the solver kept running.
 
+## Changing pyCmpl
+
+This repository is the only place where pyCmpl is changed. The other copies are generated from it:
+
+| Location | What it is | How it is updated |
+|---|---|---|
+| `pyCmpl/` (this repository) | the sources | edited here |
+| pyLogisticsLab | dependency in `requirements.txt` (git tag) | new tag in `requirements.txt` |
+| `pyCmplBin/pyCmpl/lib3/pyCmpl` | copy for the CMPL distribution, `cmplStarter` (CMPL IDE) and `cmplServer` | `./updatePyCmpl.sh <tag>` in pyCmplBin - never edit by hand |
+
+The steps below assume this layout of the working copies:
+
+```
+Projekte/
+  pyCmpl/            this repository
+  pyLogisticsLab/
+  pyCmplBin/         CMPL distribution and CMPL IDE build
+```
+
+### 1. Development
+
+Install this working copy in editable mode in the environment of the project you are testing with,
+e.g. the conda environment `pyLogisticsLab`. Changes are active immediately, without reinstalling,
+even if the project depends on a tag:
+
+```bash
+pip install -e ../pyCmpl
+python -c "import pyCmpl; print(pyCmpl.__version__, pyCmpl.__file__)"   # must show this repository
+```
+
+Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in pyLogisticsLab.
+
+### 2. Release
+
+1. Increase the version in **three** places: `pyproject.toml`, `pyCmpl/__init__.py` and `pyCmpl/Cmpl.py` (`__version__`).
+2. Add an entry to the version list below.
+3. Commit, tag and push:
+   ```bash
+   git commit -am "pyCmpl 2.1.1: ..."
+   git tag -a v2.1.1 -m "pyCmpl 2.1.1"
+   git push && git push origin v2.1.1
+   ```
+
+### 3. Update the projects
+
+- **pyLogisticsLab:** set the new tag in `requirements.txt`
+  (`pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.1`) and commit it.
+  With the editable install from step 1 nothing has to be reinstalled locally;
+  other machines and the server run `pip install -r requirements.txt`.
+- **CMPL distribution and CMPL IDE** (in pyCmplBin):
+  ```bash
+  ./updatePyCmpl.sh v2.1.1      # replaces pyCmpl/lib3/pyCmpl, writes PYCMPL_VERSION
+  ./buildCmplStarter.sh         # compiles cmplStarter with this pyCmpl (Nuitka)
+  ./bundleCmplIntoApp.sh        # copies the CMPL runtime into the app and signs it again
+  ```
+  `PYCMPL_SRC=../pyCmpl ./updatePyCmpl.sh` uses the working copy instead of a tag, e.g. to test the IDE
+  before a release.
+
 ## Versions
 
 Releases are git tags (`vX.Y.Z`); projects should depend on a tag, not on `main`.

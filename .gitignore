@@ -4,7 +4,7 @@ __pycache__/
 build/
 dist/
 .DS_Store
-# CMPL binaries are not part of the package
+# CMPL binaries are only in platform wheels (tools/build_wheel.py), not in git
 binMac/
 binWin/
 binLinux/

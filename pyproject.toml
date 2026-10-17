@@ -20,3 +20,10 @@ Homepage = "http://www.coliop.org"
 
 [tool.setuptools]
 packages = ["pyCmpl"]
+
+# CMPL runtime of a platform wheel, copied into the package by tools/build_wheel.py
+[tool.setuptools.package-data]
+pyCmpl = ["binMac/**/*", "binWin/**/*", "binLinux/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

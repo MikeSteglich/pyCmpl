@@ -26,378 +26,281 @@
  #
  #**********************************************************************
 
+import html
 import os
 import re
-import io
 
 from .CmplException import *
 
-#*************** CmplSolElement *************************************
+# CMPL writes the names of variables and constraints unescaped (e.g. x[a&b]) - the file is read
+# line by line and tolerant instead of with an XML parser
+_ELEMENT = re.compile(r'<(variable|constraint) idx="([^"]*)" name="([^"]*)" type="([^"]*)" activity="([^"]*)" '
+                      r'lowerBound="([^"]*)" upperBound="([^"]*)" marginal="([^"]*)"')
+_SOLUTION = re.compile(r'<solution idx="([^"]*)" status="([^"]*)" value="([^"]*)"')
+_GENERAL = re.compile(r"<(\w+)>([^<]*)</\1>")
+
+
 class CmplSolElement(object):
-	#*********** constructor **********
-	def __init__(self):
-		self.__idx = 0
-		self.__name = ""
-		self.__type = ""
-		self.__activity = 0
-		self.__lowerBound = 0
-		self.__upperBound = 0
-		self.__hasMarginal = False
-		self.__marginal = 0
-	#*********** end constructor ******
-	
-	# getter and setter 
-	@property
-	def idx(self):
-		return self.__idx 
-		
-	def setIdx(self, idx):
-		self.__idx = idx
-	
-	@property
-	def name(self):
-		return self.__name 
-	
-	def setName(self, name):
-		self.__name = name
-	
-	@property
-	def type(self):	
-		return self.__type 
-		
-	def setType(self, type):
-		self.__type=type
-		
-	@property
-	def activity(self):
-		return self.__activity 
-		
-	def setActivity(self, activity):
-		self.__activity=activity
-		
-	@property
-	def lowerBound(self):		
-		return self.__lowerBound
-		
-	def setLowerBound(self, lB):
-		self.__lowerBound = lB
-		
-	@property
-	def upperBound(self):
-		return self.__upperBound 
-		
-	def setUpperBound(self, uB):
-		self.__upperBound = uB
-		
-	@property
-	def marginal(self):
-		return self.__marginal 
-		
-	def setMarginal(self, marginal):
-		self.__marginal=marginal
-	# end getter and setter 
-	
-		
-#*************** end CmplSolElement ******************************
+    """ variable or constraint of a solution """
 
-#*************** CmplSolution  ***********************************
+    def __init__(self):
+        self.__idx = 0
+        self.__name = ""
+        self.__type = ""
+        self.__activity = 0
+        self.__lowerBound = 0
+        self.__upperBound = 0
+        self.__marginal = 0
+
+    @property
+    def idx(self):
+        return self.__idx
+
+    def setIdx(self, idx):
+        self.__idx = idx
+
+    @property
+    def name(self):
+        return self.__name
+
+    def setName(self, name):
+        self.__name = name
+
+    @property
+    def type(self):
+        return self.__type
+
+    def setType(self, type):
+        self.__type = type
+
+    @property
+    def activity(self):
+        return self.__activity
+
+    def setActivity(self, activity):
+        self.__activity = activity
+
+    @property
+    def lowerBound(self):
+        return self.__lowerBound
+
+    def setLowerBound(self, lB):
+        self.__lowerBound = lB
+
+    @property
+    def upperBound(self):
+        return self.__upperBound
+
+    def setUpperBound(self, uB):
+        self.__upperBound = uB
+
+    @property
+    def marginal(self):
+        return self.__marginal
+
+    def setMarginal(self, marginal):
+        self.__marginal = marginal
+
+
 class CmplSolution(object):
+    """ one solution: status, objective value, variables and constraints """
 
-	#*********** constructor **********
-	def __init__(self):
-		self.__idx = 0
-		self.__status = ""
-		self.__value = 0
-		self.__variables = []
-		self.__constraints = []
-	#*********** end constructor ******
-	
-	# getter and setter 
-	@property
-	def idx(self):
-		return self.__idx 
-		
-	def setIdx(self, idx):
-		self.__idx = idx
-	
-	@property
-	def status(self):
-		return self.__status
-		
-	def setStatus(self, status):
-		self.__status=status
-		
-	@property
-	def value(self):
-		return self.__value
-		
-	def setValue(self, val):
-		self.__value=val
-	
-	@property
-	def variables(self):
-		return self.__variables
-		
-	def setVar(self, var):
-		self.__variables.append(var)
-		
-	@property
-	def constraints(self):
-		return self.__constraints
-		
-	def setCon(self, con):
-		self.__constraints.append(con)
-		
-	# end getter and setter 	
-		
-#*************** end CmplSolution ********************************
+    def __init__(self):
+        self.__idx = 0
+        self.__status = ""
+        self.__value = 0
+        self.__variables = []
+        self.__constraints = []
+
+    @property
+    def idx(self):
+        return self.__idx
+
+    def setIdx(self, idx):
+        self.__idx = idx
+
+    @property
+    def status(self):
+        return self.__status
+
+    def setStatus(self, status):
+        self.__status = status
+
+    @property
+    def value(self):
+        return self.__value
+
+    def setValue(self, val):
+        self.__value = val
+
+    @property
+    def variables(self):
+        return self.__variables
+
+    def setVar(self, var):
+        self.__variables.append(var)
+
+    @property
+    def constraints(self):
+        return self.__constraints
+
+    def setCon(self, con):
+        self.__constraints.append(con)
 
 
-#*************** CmplSolutions  **********************************
 class CmplSolutions(object):
+    """ all solutions of a CMPL run (CmplSolution file or string) """
 
-	#*********** constructor **********
-	def __init__(self, solFile=None):
-		self.__nrOfVariables = 0
-		self.__nrOfConstraints = 0
-		self.__objectiveName = ""
-		self.__objectiveSense = ""
-		self.__nrOfSolutions = 0
-		self.__solverName = ""
-		self.__solverMsg = ""
-		self.__varDisplayOptions = ""
-		self.__conDisplayOptions = ""
-		self.__asciiSolFile = ""
-		self.__csvSolFile = "" 
-		self.__cmplSolFile = ""
-		self.__solList = []
-		self.__solutionFile = solFile
-		self.__solFileContent = ""
-		self.__isIntegerProgram = False
-	#*********** end constructor ******
-	
-	# getter
-	@property
-	def nrOfVariables(self):
-		return self.__nrOfVariables
-		
-	@property
-	def nrOfConstraints(self):
-		return self.__nrOfConstraints 
-		
-	@property
-	def nrOfConstraints(self):
-		return self.__nrOfConstraints 
-		
-	@property
-	def objectiveName(self):
-		return self.__objectiveName 
-		
-	@property
-	def objectiveSense(self):
-		return self.__objectiveSense 
-		
-	@property
-	def nrOfSolutions(self):
-		return self.__nrOfSolutions 
-		
-	@property
-	def solver(self):
-		return self.__solverName 
-		
-	@property
-	def solverMessage(self):
-		return self.__solverMsg 
-		
-	@property
-	def varDisplayOptions(self):
-		return self.__varDisplayOptions 
-		
-	@property
-	def conDisplayOptions(self):
-		return self.__conDisplayOptions
-		
-	@property
-	def asciiSolFile(self):
-		return self.__asciiSolFile
-		
-	@property
-	def csvSolFile(self):
-		return self.__csvSolFile
-			
-	@property
-	def cmplSolFile(self):
-		return self.__cmplSolFile
-		
-	@property
-	def solutions(self):
-		return self.__solList
-		
-	@property
-	def solution(self):
-		return self.__solList[0]
-		
-	@property
-	def solFileContent(self):
-		return self.__solFileContent
-	
-	def delSolFileContent(self):
-		self.__solFileContent=""
-	
-	@property
-	def isIntegerProgram(self):
-		return self.__isIntegerProgram
-	
-	#*********** readSolLine *************	
-	def _readSolLine(self, line):
-	
-		tmpList=re.findall("\"([^\"]*)\"", line)
+    # entries of <general>: tag -> (attribute, conversion)
+    _GENERAL_ENTRIES = {
+        "nrOfVariables": ("nrOfVariables", int),
+        "nrOfConstraints": ("nrOfConstraints", int),
+        "objectiveName": ("objectiveName", str),
+        "objectiveSense": ("objectiveSense", str),
+        "nrOfSolutions": ("nrOfSolutions", int),
+        "solverName": ("solverName", str),
+        "solverMsg": ("solverMsg", str),
+        "variablesDisplayOptions": ("varDisplayOptions", str),
+        "constraintsDisplayOptions": ("conDisplayOptions", str),
+    }
 
-		x = CmplSolElement()
-		x.setIdx(int(tmpList[0]))
-		x.setName(tmpList[1])
-		x.setType(tmpList[2])
-		
-		if "<constraint" in line:
-			x.setActivity(float(tmpList[3]))
-		else:
-			if x.type=='I' or x.type=='B':
-				self.__isIntegerProgram=True
-				x.setActivity(int(tmpList[3]))
-			else:
-				x.setActivity(float(tmpList[3]))
-		
-		x.setLowerBound(float(tmpList[4]))
-		x.setUpperBound(float(tmpList[5]))
-		
-		if tmpList[6]=='NaN' or tmpList[6]=='-':
-			x.setMarginal(float('NaN'))
-		else: 
-			x.setMarginal(float(tmpList[6]))
-		return x
-	#*********** end readSolLine *********	
-	
-	
-	#*********** readSolution ************	
-	def readSolution(self, solStr=None):
-		
-		if (solStr == None or len(solStr)==0) and self.__solutionFile == None:
-			raise CmplException("No solution found")
-		
-		if self.__solutionFile != None:
-			if not os.path.isfile(self.__solutionFile):
-				raise CmplException("No solution found" )
-				
-			try:	
-				f = open(self.__solutionFile, "r")
-				solStr = f.read()
-				f.close()
-			except IOError as e:
-				raise CmplException("IO error for solution file ")
-		
-		lines = io.StringIO(solStr) 
-		
-		lineNr=1
-		generalSection=False
-		solutionSection=False
-		varSection=False
-		conSection=False
-		s = CmplSolution()
-		self.__solFileContent=solStr
-		
-		for line in lines:
-			
-			if lineNr == 1:
-				if not "<?xml version" in line: 
-					raise CmplException("File " + self.__solutionFile + " - is not a XML file!")
-				else:
-					lineNr += 1
-					continue
-			if lineNr == 2:
-				if not "<CmplSolutions" in line: 
-					raise CmplException("Cant't read cmplSolution file " + self.__solutionFile + " - wrong file type!")
-				else:
-					lineNr += 1
-					continue
-			
-			if "<general>" in line:
-				generalSection=True
-				solutionSection=False
-				continue
-			if "</general>" in line:
-				generalSection=False
-				continue
-				
-			if "<solution" in line:
-				generalSection=False
-				solutionSection=True
-				s = CmplSolution()
-				tmpList = re.findall("\"([^\"]*)\"", line)
-				s.setIdx(int(tmpList[0]))
-				s.setStatus(tmpList[1])
-				s.setValue(float(tmpList[2]))
-				continue
-			if "</solution" in line:
-				solutionSection=False
-				self.__solList.append(s)
-				continue
-				
-			if generalSection:
-				if "<nrOfVariables" in line:
-					self.__nrOfVariables = int(re.findall("<nrOfVariables>([^\"]*)</nrOfVariables>", line)[0])
-					continue
-				if "<nrOfConstraints" in line:
-					self.__nrOfConstraints = int(re.findall("<nrOfConstraints>([^\"]*)</nrOfConstraints>", line)[0])
-					continue
-				if "<objectiveName" in line:
-					self.__objectiveName = re.findall("<objectiveName>([^\"]*)</objectiveName>", line)[0]
-					continue
-				if "<objectiveSense" in line:
-					self.__objectiveSense = re.findall("<objectiveSense>([^\"]*)</objectiveSense>", line)[0]
-					continue
-				if "<nrOfSolutions" in line:
-					self.__nrOfSolutions = int(re.findall("<nrOfSolutions>([^\"]*)</nrOfSolutions>", line)[0])
-					continue
-				if "<solverName" in line:
-					self.__solverName = re.findall("<solverName>([^\"]*)</solverName>", line)[0]
-					continue
-				if "<solverMsg" in line:
-					self.__solverMsg = re.findall("<solverMsg>([^\"]*)</solverMsg>", line)[0]
-					continue
-				if "<variablesDisplayOptions" in line:
-					self.__varDisplayOptions = re.findall("<variablesDisplayOptions>([^\"]*)</variablesDisplayOptions>", line)[0]
-					continue
-				if "<constraintsDisplayOptions" in line:
-					self.__conDisplayOptions = re.findall("<constraintsDisplayOptions>([^\"]*)</constraintsDisplayOptions>", line)[0]
-					continue
-			
-			if solutionSection:
-				if "<variables>" in line:
-					varSection=True
-					conSection=False
-					continue
-				if "</variables>" in line:
-					varSection=False
-					continue
-				if "<linearConstraints>" in line:
-					varSection=False
-					conSection=True
-					continue
-				if "</linearConstraints>" in line:
-					conSection=False
-					continue
-				if varSection:
-					if "<variable" in line:
-						s.setVar(self._readSolLine(line))
-						continue
-				if conSection:
-					if "<constraint" in line:
-						s.setCon(self._readSolLine(line))
-						continue
-		
-	#*********** send readSolution *******
+    def __init__(self, solFile=None):
+        self._nrOfVariables = 0
+        self._nrOfConstraints = 0
+        self._objectiveName = ""
+        self._objectiveSense = ""
+        self._nrOfSolutions = 0
+        self._solverName = ""
+        self._solverMsg = ""
+        self._varDisplayOptions = ""
+        self._conDisplayOptions = ""
+        self.__solList = []
+        self.__solutionFile = solFile
+        self.__solFileContent = ""
+        self.__isIntegerProgram = False
 
+    @property
+    def nrOfVariables(self):
+        return self._nrOfVariables
 
+    @property
+    def nrOfConstraints(self):
+        return self._nrOfConstraints
 
+    @property
+    def objectiveName(self):
+        return self._objectiveName
 
-#*************** end CmplSolutions  ***************
+    @property
+    def objectiveSense(self):
+        return self._objectiveSense
+
+    @property
+    def nrOfSolutions(self):
+        return self._nrOfSolutions
+
+    @property
+    def solver(self):
+        return self._solverName
+
+    @property
+    def solverMessage(self):
+        return self._solverMsg
+
+    @property
+    def varDisplayOptions(self):
+        return self._varDisplayOptions
+
+    @property
+    def conDisplayOptions(self):
+        return self._conDisplayOptions
+
+    # never set - kept for compatibility
+    asciiSolFile = csvSolFile = cmplSolFile = ""
+
+    @property
+    def solutions(self):
+        return self.__solList
+
+    @property
+    def solution(self):
+        return self.__solList[0]
+
+    @property
+    def solFileContent(self):
+        return self.__solFileContent
+
+    def delSolFileContent(self):
+        self.__solFileContent = ""
+
+    @property
+    def isIntegerProgram(self):
+        return self.__isIntegerProgram
+
+    def __element(self, m):
+        x = CmplSolElement()
+        x.setIdx(int(m.group(2)))
+        name = m.group(3)
+        x.setName(html.unescape(name) if "&" in name else name)
+        x.setType(m.group(4))
+        activity = float(m.group(5))
+        if m.group(1) == "variable" and x.type in ("I", "B"):
+            self.__isIntegerProgram = True
+            activity = int(round(activity))
+        x.setActivity(activity)
+        x.setLowerBound(float(m.group(6)))
+        x.setUpperBound(float(m.group(7)))
+        x.setMarginal(float("NaN") if m.group(8) in ("NaN", "-") else float(m.group(8)))
+        return x
+
+    def readSolution(self, solStr=None):
+        if not solStr and self.__solutionFile is None:
+            raise CmplException("No solution found")
+
+        source = "CmplSolution string"
+        if self.__solutionFile is not None:
+            source = "CmplSolution file " + self.__solutionFile
+            if not os.path.isfile(self.__solutionFile):
+                raise CmplException("No solution found")
+            try:
+                with open(self.__solutionFile, "r") as f:
+                    solStr = f.read()
+            except IOError:
+                raise CmplException("IO error for " + source)
+
+        lines = solStr.splitlines()
+        if len(lines) < 2 or "<?xml version" not in lines[0]:
+            raise CmplException(source + " - is not a XML file!")
+        if "<CmplSolutions" not in lines[1]:
+            raise CmplException("Cant't read " + source + " - wrong file type!")
+
+        self.__solFileContent = solStr
+        self.__solList = []
+        inGeneral = False
+        s = None
+
+        for line in lines[2:]:
+            if s is not None:
+                m = _ELEMENT.search(line)
+                if m:
+                    (s.setVar if m.group(1) == "variable" else s.setCon)(self.__element(m))
+                elif "</solution>" in line:
+                    self.__solList.append(s)
+                    s = None
+            elif inGeneral:
+                if "</general>" in line:
+                    inGeneral = False
+                else:
+                    m = _GENERAL.search(line)
+                    if m and m.group(1) in self._GENERAL_ENTRIES:
+                        attr, conv = self._GENERAL_ENTRIES[m.group(1)]
+                        setattr(self, "_" + attr, conv(html.unescape(m.group(2))))
+            elif "<general>" in line:
+                inGeneral = True
+            else:
+                m = _SOLUTION.search(line)
+                if m:
+                    s = CmplSolution()
+                    s.setIdx(int(m.group(1)))
+                    s.setStatus(m.group(2))
+                    s.setValue(float(m.group(3)))

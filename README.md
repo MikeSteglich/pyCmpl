@@ -8,6 +8,15 @@ This repository is the single source of pyCmpl for all of them.
 
 ## Installation
 
+With CMPL included - a platform wheel (see [Platform wheels](#platform-wheels-with-cmpl)):
+
+```bash
+pip install pycmpl-2.2.0-py3-none-macosx_15_0_arm64.whl
+pip install pyCmpl --find-links <page with the wheels>      # pip selects the wheel of the platform
+```
+
+Only the Python sources - CMPL is taken from `CMPLHOME`:
+
 ```bash
 pip install "pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.0"
 pip install "pyCmpl[excel] @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.0"   # with xlwings for Excel data
@@ -22,7 +31,7 @@ pip install -e pyCmpl          # changes are active immediately in every project
 
 ## CMPL binaries
 
-The package contains only the Python sources. pyCmpl looks for the CMPL binary in this order:
+pyCmpl looks for the CMPL binary in this order:
 
 1. `$CMPLHOME/bin/cmpl` (`cmpl.exe` on Windows) - the layout of a CMPL installation:
    ```
@@ -30,9 +39,38 @@ The package contains only the Python sources. pyCmpl looks for the CMPL binary i
      bin/cmpl, bin/cmpl.opt, bin/modules.opt, bin/solversel.opt, bin/cmplstd.cmpl
      Thirdparty/Highs/highs, ...
    ```
-2. `binMac/`, `binWin/` or `binLinux/` next to the package - for apps that bundle CMPL this way.
+2. `binMac/`, `binWin/` or `binLinux/` in the package - platform wheels and apps that bundle CMPL this way.
+   A flat layout, the solver paths in `cmpl.opt` are relative to `cmpl`:
+   ```
+   binMac/
+     cmpl, cmpl.opt (HIGHS Thirdparty/Highs/highs), modules.opt, solversel.opt, cmplstd.cmpl
+     Thirdparty/Highs/highs, ...
+   ```
 
 The `cmpl` start script of a CMPL installation is not used, it does not accept the arguments of pyCmpl.
+
+pyCmpl passes the data via stdin (`-data-stdin`, CMPL 2.2). With an older CMPL it writes the data
+to a temporary file.
+
+### Platform wheels with CMPL
+
+`tools/build_wheel.py` copies a flat CMPL runtime into the package and builds a wheel for one platform
+(`py3-none-<platform>`). It runs on the platform of the wheel:
+
+```bash
+python tools/build_wheel.py ../pyLogisticsLab/cmplDist/binMac          # -> dist/pycmpl-...-macosx_*_arm64.whl
+python tools\build_wheel.py ..\pyLogisticsLab\cmplDist\binWin          # on Windows -> win_amd64
+```
+
+- Only the runtime is copied: `cmpl`, the `*.opt` files, `cmplstd.cmpl`, `gurobiCmpl`, the MinGW DLLs and
+  the `Thirdparty` directories of the solvers in `cmpl.opt` - no IDE or Qt files.
+- The platform tag comes from the binaries. On macOS it is the highest deployment target of `cmpl`
+  and the solvers (e.g. HiGHS built for macOS 15 -> `macosx_15_0_arm64`), so build CMPL with
+  `MACOSX_DEPLOYMENT_TARGET=11.0`. `--plat-name` overrides the tag.
+- The license of CMPL (GPLv3) is added as `LICENSE-CMPL` (from the CMPL directory or `../CMPL2/LICENSE`).
+- `pyCmpl/binMac` etc. exist only while the wheel is built; without them `pip install`
+  builds a pure wheel (`py3-none-any`) as before.
+- `linux_*` wheels can't be uploaded to PyPI, that needs `manylinux` (auditwheel).
 
 ## Cancelling
 
@@ -81,6 +119,8 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
    git tag -a v2.1.1 -m "pyCmpl 2.1.1"
    git push && git push origin v2.1.1
    ```
+4. Build the platform wheels (`tools/build_wheel.py`, on macOS and Windows) and publish them,
+   e.g. as assets of the GitHub release - with `--find-links` pip selects the right one.
 
 ### 3. Update the projects
 
@@ -100,6 +140,20 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
 ## Versions
 
 Releases are git tags (`vX.Y.Z`); projects should depend on a tag, not on `main`.
+
+### unreleased
+- data via stdin (`-data-stdin`, CMPL 2.2), no temporary model copy, temporary files in an own directory
+- platform wheels with a bundled CMPL (`tools/build_wheel.py`)
+- relative Excel file in a CmplXlsData file is relative to the CmplXlsData file
+- numpy/pandas numbers are numbers in the cmpl data (before: strings); non-integral floats as indices are an error (before: truncated)
+- `setOption` after `delOption` no longer overwrites an option; `saveSolution` can be called several times;
+  `saveSolutionCsv()` writes `.csv`; type check of the default value of a sparse parameter
+- valid XML in `saveCmplMessageFile` and CmplInstance; `&quot;`, `&lt;` ... are decoded in messages
+- variables/constraints/sets named like a method (e.g. `send`) no longer replace it (`getVarByName` still works)
+- `cmplStatus`/`solverStatus` before `solve()`; errors of `getSolutions`/`removeProblem` of the CmplServer are reported
+- `from pyCmpl import *` exports only the API (before also `os`, `sys`, `math.pow` instead of `pow`, ...)
+- no `exec`/`eval`: reading a solution with 100,000 variables in Python takes ~0.25 s instead of ~1.1 s
+- tests: `CMPLHOME=... python -m pytest` (the tests with CMPL are skipped without a CMPL binary)
 
 ### 2.1.0
 - cancel/cleanup/interrupts stop cmpl and the solver (`stopProcessTree`)

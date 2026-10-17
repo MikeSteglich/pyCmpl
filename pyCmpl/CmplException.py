@@ -30,39 +30,29 @@ import html
 
 from io import StringIO
 
-#*************** CmplException ***********************************
 class CmplException(Exception):
-	
-	def __init__(self, msg, msgList=None):
-		self.__msgStr=StringIO()
 
-		if type(msg) == bytes:
-			msg = msg.decode("utf-8")
+    def __init__(self, msg, msgList=None):
+        self.__msgStr=StringIO()
 
-		if not "ERROR:" in msg:
-			self.__msgStr.write("ERROR: " +msg)
-		else:	
-			self.__msgStr.write(msg)
-		
-		if msgList!=None:
-			for m in msgList:
-				self.__msgStr.write("\n" + m.type + " in module <" + m.module + "> at location <" + m.location + "> " + html.unescape(m.description))
-	
-	def __str__(self):
-		return self.msg
-	
-	def __del__(self):
-		self.__msgStr.close()
-	
-	@property
-	def msg(self):
-		return self.__msgStr.getvalue()
-#*************** end CmplException *******************************
+        if type(msg) == bytes:
+            msg = msg.decode("utf-8")
 
+        if not "ERROR:" in msg:
+            self.__msgStr.write("ERROR: " +msg)
+        else:
+            self.__msgStr.write(msg)
 
-		
-		
-		
-		
+        if msgList!=None:
+            for m in msgList:
+                self.__msgStr.write("\n" + m.type + " in module <" + m.module + "> at location <" + m.location + "> " + html.unescape(m.description))
 
-		
+    def __str__(self):
+        return self.msg
+
+    def __del__(self):
+        self.__msgStr.close()
+
+    @property
+    def msg(self):
+        return self.__msgStr.getvalue()

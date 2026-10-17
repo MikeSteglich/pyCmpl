@@ -26,24 +26,23 @@
  #
  #**********************************************************************
 
+import io
+import re
+from xml.sax.saxutils import escape
+
 from .CmplSolution import *
 from .CmplException import *
 
 
-#*************** CmplSolution  ***********************************
 class CmplSolutionReport(object):
 
-    #*********** constructor **********
     def __init__(self, solutions):
         self.__solutions = solutions
-    #*********** end constructor ******
-    
 
-# *********** solutionReport **********
     def solutionReport(self, problemName, fileName=None):
 
         repStr = io.StringIO()
-        
+
         if self.__solutions.nrOfSolutions > 0:
             repStr.write(
                 "---------------------------------------------------------------------------------------------------------\n")
@@ -118,10 +117,6 @@ class CmplSolutionReport(object):
         else:
             raise CmplException("No Solution found so far")
 
-    # *********** end solutionReport ******
-
-
-    # *********** saveSolutionCsv **********
     def saveSolutionCsv(self, problemName, solFileName ):
 
         if self.__solutions.nrOfSolutions > 0:
@@ -172,39 +167,23 @@ class CmplSolutionReport(object):
                                 f.write(";%f\n" % c.marginal)
 
                 f.close()
-               
+
             except IOError as e:
                 raise CmplException("IO error for file " + solFileName + ": " + e.strerror)
 
         else:
             raise CmplException("No Solution found so far")
 
-    # *********** end saveSolutionCsv *****
-
-    # *********** saveSolution ************
     def saveSolution(self, problemName, solFileName):
         if self.__solutions.nrOfSolutions > 0:
-
-            pos1=self.__solutions.solFileContent.find('<instanceName>')+len('<instanceName>')
-            pos2=self.__solutions.solFileContent.find('</instanceName>')
-            solutionString = self.__solutions.solFileContent[:pos1] + problemName + self.__solutions.solFileContent[pos2:]
-
+            # the CmplSolution file of CMPL with the name of the problem
+            content = self.__solutions.solFileContent
+            content = re.sub(r"<instanceName>[^<]*</instanceName>",
+                             lambda m: "<instanceName>" + escape(problemName) + "</instanceName>", content, count=1)
             try:
-                f = open(solFileName, 'w')
-                f.write(solutionString)
-                f.close()
-                self.__solutions.delSolFileContent()
-
+                with open(solFileName, 'w') as f:
+                    f.write(content)
             except IOError as e:
                 raise CmplException("IO error for file " + solFileName + ": " + e.strerror)
-            
         else:
             raise CmplException("No Solution found so far")
-
-    # *********** end saveSolution ********
-    
-        
-        
-        
-#*************** end CmplSolutionReport ********************************
-

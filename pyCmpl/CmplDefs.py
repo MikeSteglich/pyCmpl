@@ -26,8 +26,7 @@
  #
  #**********************************************************************
 
-	
-#*************** general definitions  ****************************
+
 #don't change the entries, because this would cause a lot of confusions
 
 COMPATIBILITY = 3 # 2 - CMPL 1 ; 3 - CMPL 2
@@ -42,13 +41,13 @@ SOLVER_FAILED = 5
 CMPLSERVER_OK = 6
 CMPLSERVER_ERROR = 7
 CMPLSERVER_BUSY = 8
-CMPLSERVER_CLEANED = 9 
+CMPLSERVER_CLEANED = 9
 CMPLSERVER_WARNING = 10
 
 PROBLEM_RUNNING = 11
 PROBLEM_FINISHED = 12
-PROBLEM_CANCELED = 13 
-PROBLEM_NOTRUNNING = 14 
+PROBLEM_CANCELED = 13
+PROBLEM_NOTRUNNING = 14
 
 CMPLGRID_SCHEDULER_UNKNOWN = 15
 CMPLGRID_SCHEDULER_OK = 16
@@ -65,7 +64,7 @@ SERVER_UNKNOWN = 24
 CMPL_LOCAL   = 25
 CMPL_REMOTE_SOLVE   = 26
 CMPL_REMOTE_SEND    = 27
-CMPL_REMOTE_KNOCK   = 28    
+CMPL_REMOTE_KNOCK   = 28
 CMPL_REMOTE_RETRIEVE    = 30
 CMPL_REMOTE_CANCEL = 31
 PYCMPL = 32
@@ -103,10 +102,3 @@ CMPL_STATUS_TXT = { CMPL_UNKNOWN    : "CMPL_UNKNOWN" , \
                     CMPL_REMOTE_RETRIEVE :   "CMPL_REMOTE_RETRIEVE", \
                     CMPL_REMOTE_CANCEL : "CMPL_REMOTE_CANCEL"
                     }
-
-
-#*************** end general definitions  ************************
-
-		
-
-		

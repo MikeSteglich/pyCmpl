@@ -26,225 +26,162 @@
  #
  #**********************************************************************
 
+import html
 import os
 import re
-import io 
-
-from xml.sax.saxutils import unescape
+from xml.sax.saxutils import escape
 
 from .CmplDefs import *
 from .CmplException import *
 
+# CMPL writes the attributes of messages not always escaped (e.g. location) - the file is read
+# line by line and tolerant, html.unescape keeps invalid entities like a single "&" as they are
+_ATTR = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
+_ELEM = re.compile(r"<(\w+)>([^<]*)</\1>")
 
-#*************** CmplMsg *****************************************
+
+def _quoteAttr(v):
+    """ attribute value in double quotes, as the reader expects it """
+    return '"' + escape(v, {'"': "&quot;"}) + '"'
+
+
 class CmplMsg(object):
-	def __init__(self):
-		self.__type = ""
-		self.__module = ""
-		self.__location = ""
-		#self.__line = ""
-		self.__description = ""
-		
-	# getter and setter 	
-	@property
-	def type(self):
-		return self.__type
-	
-	def setType(self, type):
-		self.__type=type
-		
-	@property
-	def location(self):
-		return self.__location
-		
-	def setLocation(self, file):
-		self.__location=file
+    """ one message of CMPL (error or warning) """
 
-	@property
-	def module(self):
-		return self.__module
+    def __init__(self):
+        self.__type = ""
+        self.__module = ""
+        self.__location = ""
+        self.__description = ""
 
-	def setModule(self,mod):
-		self.__module=mod
-		
-	@property
-	def description(self):
-		return self.__description
-		
-	def setDescription(self, msg):
-		self.__description=msg
-	#end getter and setter
-	
-			
-#*************** end CmplMsg *************************************
+    @property
+    def type(self):
+        return self.__type
+
+    def setType(self, type):
+        self.__type = type
+
+    @property
+    def location(self):
+        return self.__location
+
+    def setLocation(self, file):
+        self.__location = file
+
+    @property
+    def module(self):
+        return self.__module
+
+    def setModule(self, mod):
+        self.__module = mod
+
+    @property
+    def description(self):
+        return self.__description
+
+    def setDescription(self, msg):
+        self.__description = msg
 
 
-#*************** CmplMsg *****************************************
-class CmplMessages(object):	
+class CmplMessages(object):
+    """ messages of a CMPL run (CmplMessages file or string) """
 
-	def __init__(self, msgFile=None):
-		self.__cmplStatus = ""
-		self.__instance = ""
-		self.__cmplVersion = ""
-		self.__cmplMessage = ""
-		self.__msgFile = msgFile
-		self.__cmplMessageList = []
-		self.__nrOfMessages = 0
-		
-	#*********** cmplStatus ********	
-	@property
-	def cmplStatus(self):
-		if self.__cmplStatus=="normal":
-			return CMPL_OK
-		elif self.__cmplStatus=="warning":
-			return CMPL_WARNINGS
-		elif self.__cmplStatus=="error":
-			return CMPL_FAILED
-		else:
-			return CMPL_UNKNOWN
-	#*********** end cmplStatus *****	
-	
-	#*********** cmplMessageList ****	
-	@property
-	def cmplMessageList(self):
-		return self.__cmplMessageList
-	#******* end cmplMessageList ****
-	
-	#*********** cmplMessage ********	
-	@property
-	def cmplMessage(self):
-		return self.__cmplMessage
-	#******* end cmplMessage ********
-	
-		
-	#*********** readCmplMessages ********	
-	def readCmplMessages(self, msgStr=None):
-	
-		if msgStr == None and self.__msgFile == None:
-			raise CmplException("Neither cmplMessageFile nor cmplMessageString defined")
-		
-		if 	self.__msgFile != None:
-			if not os.path.isfile(self.__msgFile):
-				raise CmplException("CMPL failed."  )
-	
-			try:	
-				f = open(self.__msgFile, "r")
-				msgStr = f.read()
-				f.close()
-			except IOError:
-				raise CmplException("IO error for CmplMessage file ")	
-				
-		lines = io.StringIO(msgStr) 
-		
-		lineNr=1
-		generalSection=False
-		msgSection=False
-		x = CmplMsg()
-		
-		for line in lines:
-			if lineNr == 1:
-				if not "<?xml version" in line: 
-					raise CmplException("File " + self.__msgFile + " - is not a XML file!")
-				else:
-					lineNr += 1
-					continue
-			if lineNr == 2:
-				if not "<CmplMessages" in line: 
-					raise CmplException("Cant't read cmplMessage file " + self._cmplMsgFile + " - wrong file type!")
-				else:
-					lineNr += 1
-					continue
-	
-			if "<general>" in line:
-				generalSection=True
-				msgSection=False
-				continue
-			if "</general>" in line:
-				generalSection=False
-				continue
-			if "<messages" in line:
-				generalSection=False
-				msgSection=True
-				continue
-			if "</messages" in line:
-				msgSection=False
-				continue
-				
-			if generalSection:
-				if "<generalStatus" in line:
-					self.__cmplStatus = re.findall("<generalStatus>([^\"]*)</generalStatus>", line)[0]
-					continue
-				if "<instanceName" in line:
-					self.__instance = re.findall("<instanceName>([^\"]*)</instanceName>", line)[0]
-					path,name=os.path.split(self.__instance)
-					self.__instance=name
+    _STATUS = {"normal": CMPL_OK, "warning": CMPL_WARNINGS, "error": CMPL_FAILED}
 
-				if "<message" in line:
-					self.__cmplMessage = re.findall("<message>([^\"]*)</message>", line)[0]
-					continue
-				if "<cmplVersion" in line:
-					self.__cmplVersion = re.findall("<cmplVersion>([^\"]*)</cmplVersion>", line)[0]
-					continue
-		
-			if msgSection:
-				if "<message" in line:
-					tmpList=re.findall("\"([^\"]*)\"", line)
-					x = CmplMsg()
-					x.setType(tmpList[0])
+    def __init__(self, msgFile=None):
+        self.__cmplStatus = ""
+        self.__instance = ""
+        self.__cmplVersion = ""
+        self.__cmplMessage = ""
+        self.__msgFile = msgFile
+        self.__cmplMessageList = []
 
-					x.setModule(tmpList[1])
+    @property
+    def cmplStatus(self):
+        return self._STATUS.get(self.__cmplStatus, CMPL_UNKNOWN)
 
-					tmpLocation=""
-					path,name=os.path.split(tmpList[2])
+    @property
+    def cmplMessageList(self):
+        return self.__cmplMessageList
 
-					tmpLoc=re.findall('(.*)_cmpl__(.*).cmpl(.*)',tmpList[2])
-					if len(tmpLoc)>0:
-						tmpLocation=tmpLoc[0][0]+".cmpl"+tmpLoc[0][0]
-					else:
-						tmpLocation=tmpList[2]
-					
-					path,name=os.path.split(tmpLocation)
-					x.setLocation(name)
-		
-					x.setDescription( unescape(tmpList[3] , entities={ "&apos;":"'"} ) )
-					self.__cmplMessageList.append(x)
+    @property
+    def cmplMessage(self):
+        return self.__cmplMessage
 
-		self.__nrOfMessages= len(self.__cmplMessageList)
-						
-							
-	#*********** end readCmplMessages ****	
-		
-	
-	#*********** writeCmplMessages ********	
-	def writeCmplMessages(self, fileName):
-		try:	
-			f = open(fileName, "w")
-			f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"+os.linesep)
-			f.write("<CmplMessages version=\"1.1\">"+os.linesep)
-			f.write("	<general>"+os.linesep)
-			f.write("		<instanceName>"+self.__instance+"</instanceName>"+os.linesep)
-			f.write("		<generalStatus>"+self.__cmplStatus+"</generalStatus>"+os.linesep)
-			f.write("		<message>"+self.__cmplMessage+"</message>"+os.linesep)
-			f.write("		<cmplVersion>"+self.__cmplVersion+"</cmplVersion>"+os.linesep)
-			f.write("	</general>"+os.linesep)
+    def readCmplMessages(self, msgStr=None):
+        if msgStr is None and self.__msgFile is None:
+            raise CmplException("Neither cmplMessageFile nor cmplMessageString defined")
 
-			if self.__nrOfMessages>0:
-				f.write("	<messages numberOfMessages=\""+str(self.__nrOfMessages)+"\">"+os.linesep)
+        source = "CmplMessages string"
+        if self.__msgFile is not None:
+            source = "CmplMessages file " + self.__msgFile
+            if not os.path.isfile(self.__msgFile):
+                raise CmplException("CMPL failed.")
+            try:
+                with open(self.__msgFile, "r") as f:
+                    msgStr = f.read()
+            except IOError:
+                raise CmplException("IO error for " + source)
 
-				for m in self.__cmplMessageList:
-					f.write("		<message type =\""+m.type+"\" module=\""+m.module+"\" location=\""+m.location+"\" description=\""+m.description+"\"/>"+ os.linesep)
+        lines = msgStr.splitlines()
+        if len(lines) < 2 or "<?xml version" not in lines[0]:
+            raise CmplException(source + " - is not a XML file!")
+        if "<CmplMessages" not in lines[1]:
+            raise CmplException("Cant't read " + source + " - wrong file type!")
 
-				f.write("	</messages>"+os.linesep)
-			
-			f.write("</CmplMessages>"+os.linesep)
+        self.__cmplMessageList = []
+        inGeneral = inMessages = False
 
-			f.close()
-		except IOError:
-			raise CmplException("IO error for CmplMessage file ")
-	#*********** end writeCmplMessages ********	
-		
-		
-		
-		
+        for line in lines[2:]:
+            if "<general>" in line:
+                inGeneral = True
+            elif "</general>" in line:
+                inGeneral = False
+            elif "<messages" in line:
+                inMessages = True
+            elif "</messages" in line:
+                inMessages = False
 
-		
+            elif inGeneral:
+                m = _ELEM.search(line)
+                if m:
+                    tag, val = m.group(1), html.unescape(m.group(2))
+                    if tag == "generalStatus":
+                        self.__cmplStatus = val
+                    elif tag == "instanceName":
+                        self.__instance = os.path.basename(val)
+                    elif tag == "message":
+                        self.__cmplMessage = val
+                    elif tag == "cmplVersion":
+                        self.__cmplVersion = val
+
+            elif inMessages and "<message" in line:
+                attrs = dict((k, html.unescape(v)) for k, v in _ATTR.findall(line))
+                x = CmplMsg()
+                x.setType(attrs.get("type", ""))
+                x.setModule(attrs.get("module", ""))
+                x.setLocation(os.path.basename(attrs.get("location", "")))
+                x.setDescription(attrs.get("description", ""))
+                self.__cmplMessageList.append(x)
+
+    def writeCmplMessages(self, fileName):
+        lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+                 '<CmplMessages version="1.1">',
+                 "\t<general>",
+                 "\t\t<instanceName>" + escape(self.__instance) + "</instanceName>",
+                 "\t\t<generalStatus>" + escape(self.__cmplStatus) + "</generalStatus>",
+                 "\t\t<message>" + escape(self.__cmplMessage) + "</message>",
+                 "\t\t<cmplVersion>" + escape(self.__cmplVersion) + "</cmplVersion>",
+                 "\t</general>"]
+        if self.__cmplMessageList:
+            lines.append('\t<messages numberOfMessages="%d">' % len(self.__cmplMessageList))
+            for m in self.__cmplMessageList:
+                lines.append("\t\t<message type=%s module=%s location=%s description=%s/>"
+                             % tuple(_quoteAttr(v) for v in (m.type, m.module, m.location, m.description)))
+            lines.append("\t</messages>")
+        lines.append("</CmplMessages>")
+        try:
+            with open(fileName, "w") as f:
+                f.write("\n".join(lines) + "\n")
+        except IOError:
+            raise CmplException("IO error for CmplMessage file " + fileName)

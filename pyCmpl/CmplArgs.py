@@ -62,7 +62,7 @@ class CmplArgs:
         self.__isSilent = False
         self.__isDisplayOpt = False
 
-        self.__solver = "cbc"
+        self.__solver = "highs"
 
     @property
     def optFile(self):

@@ -197,7 +197,7 @@ class Cmpl(threading.Thread):
         self.__instStr = ""
         self.__cmplInstance = None
 
-        self.__solver = "cbc"
+        self.__solver = "highs"
 
         self.__cmplServer = None
         self.__cmplUrl = ""
@@ -228,6 +228,8 @@ class Cmpl(threading.Thread):
         if cmplArgs:
             self.__cmplArgs = cmplArgs
             self.__runMode = self.__cmplArgs.runMode
+            # the solver of the cmpl command line (-solver) - otherwise the default is sent to a CmplServer
+            self.__solver = self.__cmplArgs.solver
         else:
             self.__preCompAlias = "cmpl__"+next(tempfile._get_candidate_names())+"__"
             self.__cmplArgs = CmplArgs(self.__preCompAlias+".optcmpl")

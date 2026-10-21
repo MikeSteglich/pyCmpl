@@ -18,8 +18,8 @@ pip install pyCmpl --find-links <page with the wheels>      # pip selects the wh
 Only the Python sources - CMPL is taken from `CMPLHOME`:
 
 ```bash
-pip install "pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.0"
-pip install "pyCmpl[excel] @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.0"   # with xlwings for Excel data
+pip install "pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.0.0"
+pip install "pyCmpl[excel] @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.0.0"   # with xlwings for Excel data
 ```
 
 For development in several projects at the same time:
@@ -84,8 +84,8 @@ This repository is the only place where pyCmpl is changed. The other copies are 
 | Location | What it is | How it is updated |
 |---|---|---|
 | `pyCmpl/` (this repository) | the sources | edited here |
-| pyLogisticsLab | dependency in `requirements.txt` (git tag) | new tag in `requirements.txt` |
-| `pyCmplBin/pyCmpl/lib3/pyCmpl` | copy for the CMPL distribution, `cmplStarter` (CMPL IDE) and `cmplServer` | `./updatePyCmpl.sh <tag>` in pyCmplBin - never edit by hand |
+| pyLogisticsLab | dependency in `requirements.txt` (git tag), also used by its distributions (`dist/`) | new tag in `requirements.txt` |
+| CMPL distribution and CMPL IDE | copy in `pyCmpl/lib3/pyCmpl`, compiled into `cmplStarter` and `cmplServer` | `Cmpl2/dist/buildDist.py` takes a tag (`PYCMPL_DEFAULT`, `--pycmpl`) - never edit the copy by hand |
 
 The steps below assume this layout of the working copies:
 
@@ -93,7 +93,8 @@ The steps below assume this layout of the working copies:
 Projekte/
   pyCmpl/            this repository
   pyLogisticsLab/
-  pyCmplBin/         CMPL distribution and CMPL IDE build
+  Cmpl2/             CMPL, build of the CMPL distribution and the CMPL IDE (dist/buildDist.py)
+  CmplIde/
 ```
 
 ### 1. Development
@@ -115,9 +116,9 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
 2. Add an entry to the version list below.
 3. Commit, tag and push:
    ```bash
-   git commit -am "pyCmpl 2.1.1: ..."
-   git tag -a v2.1.1 -m "pyCmpl 2.1.1"
-   git push && git push origin v2.1.1
+   git commit -am "pyCmpl 3.0.1: ..."
+   git tag -a v3.0.1 -m "pyCmpl 3.0.1"
+   git push && git push origin v3.0.1
    ```
 4. Build the platform wheels (`tools/build_wheel.py`, on macOS and Windows) and publish them,
    e.g. as assets of the GitHub release - with `--find-links` pip selects the right one.
@@ -125,23 +126,24 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
 ### 3. Update the projects
 
 - **pyLogisticsLab:** set the new tag in `requirements.txt`
-  (`pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v2.1.1`) and commit it.
+  (`pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.0.1`) and commit it.
   With the editable install from step 1 nothing has to be reinstalled locally;
   other machines and the server run `pip install -r requirements.txt`.
-- **CMPL distribution and CMPL IDE** (in pyCmplBin):
+- **CMPL distribution and CMPL IDE** (in Cmpl2): set the new tag as `PYCMPL_DEFAULT` in `dist/buildDist.py`,
+  commit it and build the distribution again - the tag is cloned, copied to `pyCmpl/lib3/pyCmpl`
+  (with `PYCMPL_VERSION`) and compiled into `cmplStarter` and `cmplServer` (Nuitka):
   ```bash
-  ./updatePyCmpl.sh v2.1.1      # replaces pyCmpl/lib3/pyCmpl, writes PYCMPL_VERSION
-  ./buildCmplStarter.sh         # compiles cmplStarter with this pyCmpl (Nuitka)
-  ./bundleCmplIntoApp.sh        # copies the CMPL runtime into the app and signs it again
+  python3 dist/buildDist.py                        # with PYCMPL_DEFAULT
+  python3 dist/buildDist.py --pycmpl ../pyCmpl     # the working copy instead of a tag, e.g. before a release
   ```
-  `PYCMPL_SRC=../pyCmpl ./updatePyCmpl.sh` uses the working copy instead of a tag, e.g. to test the IDE
-  before a release.
 
 ## Versions
 
 Releases are git tags (`vX.Y.Z`); projects should depend on a tag, not on `main`.
 
-### unreleased
+### 3.0.0
+- the solver of the cmpl command line is sent to the CmplServer (`cmpl ... -url` via cmplStarter) - before always
+  `cbc`; default solver `highs` instead of `cbc` (as in cmpl)
 - data via stdin (`-data-stdin`, CMPL 2.2), no temporary model copy, temporary files in an own directory
 - platform wheels with a bundled CMPL (`tools/build_wheel.py`)
 - relative Excel file in a CmplXlsData file is relative to the CmplXlsData file

@@ -141,34 +141,6 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
 
 Releases are git tags (`vX.Y.Z`); projects should depend on a tag, not on `main`.
 
-### 3.1.0
-- released together with LogisticsLab Studio 1.0.1, the repository public - no changes of the API since 3.0.0
-
-### 3.0.0
-- the solver of the cmpl command line is sent to the CmplServer (`cmpl ... -url` via cmplStarter) - before always
-  `cbc`; default solver `highs` instead of `cbc` (as in cmpl)
-- data via stdin (`-data-stdin`, CMPL 2.2), no temporary model copy, temporary files in an own directory
-- platform wheels with a bundled CMPL (`tools/build_wheel.py`)
-- relative Excel file in a CmplXlsData file is relative to the CmplXlsData file
-- numpy/pandas numbers are numbers in the cmpl data (before: strings); non-integral floats as indices are an error (before: truncated)
-- `setOption` after `delOption` no longer overwrites an option; `saveSolution` can be called several times;
-  `saveSolutionCsv()` writes `.csv`; type check of the default value of a sparse parameter
-- valid XML in `saveCmplMessageFile` and CmplInstance; `&quot;`, `&lt;` ... are decoded in messages
-- variables/constraints/sets named like a method (e.g. `send`) no longer replace it (`getVarByName` still works)
-- `cmplStatus`/`solverStatus` before `solve()`; errors of `getSolutions`/`removeProblem` of the CmplServer are reported
-- `from pyCmpl import *` exports only the API (before also `os`, `sys`, `math.pow` instead of `pow`, ...)
-- no `exec`/`eval`: reading a solution with 100,000 variables in Python takes ~0.25 s instead of ~1.1 s
-- tests: `CMPLHOME=... python -m pytest` (the tests with CMPL are skipped without a CMPL binary)
-
-### 2.1.0
-- cancel/cleanup/interrupts stop cmpl and the solver (`stopProcessTree`)
-- one implementation for all apps: no console window on Windows, no blocking stdout pipe without output,
-  error messages of cmpl are always read
-- `CMPLHOME` or bundled `binMac`/`binWin`/`binLinux`, clear error message if the binary is missing
-- xlwings is imported only when Excel data are used
-- no `SyntaxWarning` for regular expressions
-- `str(CmplException)` returns the message (before only "ERROR:"), `e.msg` is unchanged
-
 ## License
 
 LGPL-3.0-or-later, see `LICENSE`.

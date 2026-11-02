@@ -18,8 +18,8 @@ pip install pyCmpl --find-links <page with the wheels>      # pip selects the wh
 Only the Python sources - CMPL is taken from `CMPLHOME`:
 
 ```bash
-pip install "pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.0.0"
-pip install "pyCmpl[excel] @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.0.0"   # with xlwings for Excel data
+pip install "pyCmpl @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.1.0"
+pip install "pyCmpl[excel] @ git+https://github.com/MikeSteglich/pyCmpl.git@v3.1.0"   # with xlwings for Excel data
 ```
 
 For development in several projects at the same time:
@@ -140,6 +140,9 @@ Test the change in the projects that use pyCmpl, e.g. `tests/pyCmpl/find*.py` in
 ## Versions
 
 Releases are git tags (`vX.Y.Z`); projects should depend on a tag, not on `main`.
+
+### 3.1.0
+- released together with LogisticsLab Studio 1.0.1, the repository public - no changes of the API since 3.0.0
 
 ### 3.0.0
 - the solver of the cmpl command line is sent to the CmplServer (`cmpl ... -url` via cmplStarter) - before always
